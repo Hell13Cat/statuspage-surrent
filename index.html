@@ -1,0 +1,220 @@
+<html><head><title>Сервера</title><base href="." /><style>
+:root {
+    --md-primary: #BB86FC;
+    --md-secondary: #03DAC6;
+    --md-error: #CF6679;
+    --md-success: #4CAF50;
+    --md-bg: #121212;
+    --md-surface: #1E1E1E;
+    --md-text: rgba(255,255,255,0.87);
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: 'Roboto', sans-serif;
+    background: var(--md-bg);
+    color: var(--md-text);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.status-card {
+    background: var(--md-surface);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-up {
+    background: var(--md-success);
+    box-shadow: 0 0 8px var(--md-success);
+}
+
+.status-down {
+    background: var(--md-error);
+    box-shadow: 0 0 8px var(--md-error);
+}
+
+.status-checking {
+    background: var(--md-secondary);
+    animation: pulse 1.5s infinite;
+}
+
+.sites-list {
+    margin-top: 15px;
+    padding-left: 20px;
+    font-size: 0.9em;
+    color: rgba(255,255,255,0.7);
+}
+
+.sites-list li {
+    margin: 5px 0;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.response-time {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: rgba(255,255,255,0.6);
+}
+
+h1 {
+    text-align: center;
+    color: var(--md-primary);
+    margin-bottom: 40px;
+}
+
+.last-checked {
+    font-size: 0.8em;
+    color: rgba(255,255,255,0.6);
+    margin-top: 8px;
+}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>Сервера</h1>
+    <div class="status-grid" id="statusGrid"></div>
+
+<script>
+const services = [
+    {
+        name: "Cat",
+        url: "http://test-ping-cat.nyan.pw",
+        sites: [
+            "nyan.pw",
+            "nya.nyan.pw",
+            "w-vt.nyan.pw",
+            "legal.nyan.pw",
+            "game-time.nyan.pw",
+            "vt-sort.nyan.pw",
+            "en-holo-sort.nyan.pw",
+            "en-phase-sort.nyan.pw",
+            "en-kawaii-sort.nyan.pw",
+            "ru-holo-sort.nyan.pw",
+            "ru-phase-sort.nyan.pw",
+            "ru-kawaii-sort.nyan.pw"
+        ]
+    },
+    {
+        name: "Shark",
+        url: "http://test-ping-shark.nyan.pw",
+        sites: [
+            "yoru.pw",
+            "ajia-no-ongaku.space"
+        ]
+    },
+    {
+        name: "Jackal",
+        url: "http://test-ping-jackal.nyan.pw",
+        sites: [
+            "lossy.ajia-no-ongaku.space"
+        ]
+    },
+    {
+        name: "Bat",
+        url: "http://test-ping-bat.nyan.pw",
+        sites: [
+            "lossless.ajia-no-ongaku.space"
+        ]
+    }
+];
+
+function createStatusCard(service) {
+    const card = document.createElement('div');
+    card.className = 'status-card';
+    
+    const sitesList = service.sites.map(site => `<li>${site}</li>`).join('');
+    
+    card.innerHTML = `
+        <h2>
+            <span class="status-indicator status-checking"></span>
+            ${service.name}
+        </h2>
+        <div class="response-time">Checking status...</div>
+        <div class="last-checked"></div>
+        <ul class="sites-list">
+            ${sitesList}
+        </ul>
+    `;
+    return card;
+}
+
+function updateStatus(card, status, responseTime) {
+    const indicator = card.querySelector('.status-indicator');
+    indicator.classList.remove('status-checking');
+    
+    if (status === 'up') {
+        indicator.classList.add('status-up');
+        card.querySelector('.response-time').textContent = `Response time: ${responseTime}ms`;
+    } else {
+        indicator.classList.add('status-down');
+        card.querySelector('.response-time').textContent = 'Service unavailable';
+    }
+    
+    card.querySelector('.last-checked').textContent = 
+        `Last checked: ${new Date().toLocaleTimeString()}`;
+}
+
+async function checkStatus(service, card) {
+    try {
+        const startTime = performance.now();
+        const response = await fetch(service.url, {
+            mode: 'cors',
+            timeout: 5000
+        });
+        const endTime = performance.now();
+        const responseTime = Math.round(endTime - startTime);
+        
+        updateStatus(card, 'up', responseTime);
+    } catch (error) {
+        updateStatus(card, 'down');
+    }
+}
+
+function initializeStatusPage() {
+    const grid = document.getElementById('statusGrid');
+    
+    services.forEach(service => {
+        const card = createStatusCard(service);
+        grid.appendChild(card);
+        checkStatus(service, card);
+        
+        // Refresh status every 30 seconds
+        setInterval(() => {
+            card.querySelector('.status-indicator').className = 'status-indicator status-checking';
+            checkStatus(service, card);
+        }, 30000);
+    });
+}
+
+// Start the status page
+document.addEventListener('DOMContentLoaded', initializeStatusPage);
+</script>
+</body></html>
